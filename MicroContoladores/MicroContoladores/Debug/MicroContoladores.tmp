@@ -1,0 +1,30 @@
+<ASSEMBLER_INFO>
+ <VERSION>2.2.8</VERSION>
+ <DEVICE>"ATmega328P"</DEVICE>
+ <WORKING_DIR>C:\Users\Gustavo Costa\Documents\Atmel Studio\7.0\MicroContoladores\MicroContoladores\Debug</WORKING_DIR>
+ <INCLUDE_PATH>
+  <DIR>D:/Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\avrasm\inc</DIR>
+  <DIR>D:\Atmel\Studio\7.0\toolchain\avr8\avrassembler\Include</DIR>
+  <DIR></DIR>
+ </INCLUDE_PATH>
+ <SOURCE_FILE>C:\Users\Gustavo Costa\Documents\Atmel Studio\7.0\MicroContoladores\MicroContoladores\7seg.asm</SOURCE_FILE>
+ <INCLUDED_FILES>
+  <FILE>D:/Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\avrasm\inc\m328Pdef.inc</FILE>
+ </INCLUDED_FILES>
+ <OBJECT_FILES>
+  <FILE>C:\Users\Gustavo Costa\Documents\Atmel Studio\7.0\MicroContoladores\MicroContoladores\Debug\MicroContoladores.obj</FILE>
+ </OBJECT_FILES>
+ <HEX_FILES>
+  <FILE>MicroContoladores.hex</FILE>
+ </HEX_FILES>
+ <OUTPUT_FILES>
+  <FILE>MicroContoladores.map</FILE>
+  <FILE>MicroContoladores.lss</FILE>
+ </OUTPUT_FILES>
+ <LABELS>
+  <reset><FILE>C:\Users\Gustavo Costa\Documents\Atmel Studio\7.0\MicroContoladores\MicroContoladores\7seg.asm</FILE><LINE>56</LINE></reset>
+  <OCI1A_Interrupt><FILE>C:\Users\Gustavo Costa\Documents\Atmel Studio\7.0\MicroContoladores\MicroContoladores\7seg.asm</FILE><LINE>18</LINE></OCI1A_Interrupt>
+  <table><FILE>C:\Users\Gustavo Costa\Documents\Atmel Studio\7.0\MicroContoladores\MicroContoladores\7seg.asm</FILE><LINE>37</LINE></table>
+  <main_lp><FILE>C:\Users\Gustavo Costa\Documents\Atmel Studio\7.0\MicroContoladores\MicroContoladores\7seg.asm</FILE><LINE>104</LINE></main_lp>
+ </LABELS>
+</ASSEMBLER_INFO>
