@@ -32,8 +32,8 @@ reset:
 								;TIMER INITIALIZATION
 	#define CLOCK 16.0e6		;Clock speed at 16Mhz
 	#define DELAY 1				;Delay seconds
-	.equ PRESCALE = 0b100		;Code to /256 prescale
-	.equ PRESCALE_DIV = 256
+	.equ PRESCALE = 0b100		;binary code to /256 prescale
+	.equ PRESCALE_DIV = 256		;for calc
 	.equ WGM = 0b0100			;Waveform generation mode: CTC = CLEAR TIME AND COMPARE
 	.equ TOP = int(0.5 + ((CLOCK/PRESCALE_DIV)*DELAY))
 	.if TOP > 65535				;TOP MUST BE BETWEEN 0 AND 65535.
@@ -50,5 +50,11 @@ reset:
 	sts TCCR1B, temp			;Start counter // SET TTCT1B WITH PRESCALE AND OP MODE
 
 	lds temp, TIMSK1			;LOADS TIMSK1 TO TEMP, SET BIT IN TEMP WITH A SHIFT OF OCIE1A BITS AND STORES TEMP TO TIMSK1
-	sbr temp, 0b0001 <<OCIE1A
+	sbr temp, (0b0001 << OCIE1A)
 	sts TIMSK1, temp
+
+	sei							;Set Global Interrupt Enable Bit
+
+	jmp main					;Go to Main Code.
+
+	OC1A_Interrupt:
