@@ -6,26 +6,22 @@
 ;
 
 /* Defines DESCENDO as value 1 */
-.def PARADO = r17
-.def DESCENDO = r18
-.def SUBINDO = r19
+/*
+#define PARADO 0
+#define DESCENDO 1
+#define SUBINDO 2
+*/
+
+.equ PARADO = 0
+.equ DESCENDO = 1
+.equ SUBINDO = 2
+
+
 
 ldi R16, high(RAMEND)
 ldi R17, low(RAMEND)
 out SPL, R17
 out SPH, R16
-
-;salvar valor de registrador para não ser sobrescrito
-push R16 		;save register value
-ldi R16, $FF 	;use register freely
-out PORTB, R16 
-pop R16 		;restore register value before continuing
-
-;trocar valores entre dois registradores (swap)
-push R5 		;R5 moved to temporary location on stack
-mov R5, R6
-pop R6 			;temp location removed from stack to R6
-
 
 /* MOVEMENT CONTROL */
 
@@ -37,6 +33,9 @@ pop R6 			;temp location removed from stack to R6
 */
 .def currentFloor = r20
 .def destinationFloor = r21
+.def requested = r22
+.def state = r23
+.def temp = r24
 
 goDown:
 	pop destinationFloor
@@ -45,8 +44,8 @@ goDown:
 	loop1:
 		cp currentFloor, destinationFloor	; Compare
 		breq skip1							; Branch if not equal (!=)
-		dec currentFloor					
-		sleep 3000
+		ror currentFloor	
+		/* Wait 3000ms */	
 		rjmp loop1 
 	skip1: 
 	ldi state, PARADO
@@ -58,16 +57,16 @@ goUp:
 	ldi state, SUBINDO					; Sets state as DESCENDO
 	loop2:
 		cp currentFloor, destinationFloor	; Compare 
-		breq skip							; Branch if not equal (!=)
-		inc currentFloor					
-		sleep 3000
+		breq skip2							; Branch if not equal (!=)
+		rol currentFloor					
+		/* Wait 3000ms */
 		rjmp loop2
 	skip2: 
 	ldi state, PARADO
 	/* Acionar o buzzer por X segundos */
 
 initialize:
-	cp currentFloor, 0
+	cpi currentFloor, 0
 	breq skip3
 	push currentFloor
 	push destinationFloor
@@ -79,35 +78,53 @@ initialize:
 
 
 /* STACK CONTROL */
-			.dseg
-			.org SRAM_START		; SRAM initialization
-isPresent:  .byte 4				; Allocate 4 bytes for array called isPresent
-	sts isPresent, 0			; 
-	sts isPresent + 1, 0
-	sts isPresent + 2, 0
-	sts isPresent + 3, 0
 
-/* */
 enqueue:
 	pop destinationFloor
-	cp isPresent + destinationFloor, 1
-	bneq skip4
-	ldi isPresent + destinationFloor, 1
+	mov temp, requested
+	and temp, destinationFloor
+	cpi temp, 0x00
+	brne skip4
+	or requested, destinationFloor
 	push destinationFloor	
 	skip4:
 
 dequeue:
-	ldi isPresent + currentFloor, 0
+	eor requested, currentFloor
 	pop currentFloor
-	
 
-	
+/* 
+
+.equ groundFloorOutsideButton = PIND0
+.equ firstFloorOutsideButton  = PIND1
+.equ secondFloorOutsideButton = PIND2
+.equ thirdFloorOutsideButton  = PIND3
+
+.equ groundFloorInsideButton  = PIND4
+.equ firstFloorInsideButton   = PIND5
+.equ secondFloorInsideButton  = PIND6
+.equ thirdFloorInsideButton   = PIND7
+
+.def input = r10
+in input, D0
+
+ldi R19, 0x00
+out DDRD, R19 ; ENTRADA
+ldi R19, 0xFF
+out DDRB, R19 ; SAIDA
+
+loop:
+	in R19,PORTD ;EXEMPLO 0b0010000 CASO APERTE O BOTÃO 5
+	out PORTB, R19;EXEMPLO 0b0010000 CASO APERTE O BOTÃO 5
+	rjmp loop
+
+
+	*/
 
 
 
 
 
-/* */
 
 
 
