@@ -15,7 +15,7 @@
     <Name>MicroContoladores</Name>
     <RootNamespace>MicroContoladores</RootNamespace>
     <ToolchainFlavour>Native</ToolchainFlavour>
-    <EntryFile>$(MSBuildProjectDirectory)\7seg.asm</EntryFile>
+    <EntryFile>$(MSBuildProjectDirectory)\main.asm</EntryFile>
     <KeepTimersRunning>true</KeepTimersRunning>
     <OverrideVtor>false</OverrideVtor>
     <CacheFlash>true</CacheFlash>
@@ -80,9 +80,6 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="7seg.asm">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="main.asm">
       <SubType>Code</SubType>
     </Compile>

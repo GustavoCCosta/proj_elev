@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.8  C:\Users\Gustavo Costa\Documents\Atmel Studio\7.0\MicroContoladores\MicroContoladores\7seg.asm Sat Oct 29 14:58:06 2022
+AVRASM ver. 2.2.8  C:\Users\Gustavo Costa\Documents\Atmel Studio\7.0\MicroContoladores\MicroContoladores\main.asm Fri Nov 11 22:38:50 2022
 
 
 EQU  SIGNATURE_000 0000001e
@@ -695,14 +695,31 @@ EQU  ACIaddr      0000002e
 EQU  TWIaddr      00000030
 EQU  SPMRaddr     00000032
 EQU  INT_VECTORS_SIZE 00000034
-DEF  temp         r16
-DEF  leds         r17
-DEF  Disp         r19
-CSEG reset        00000034
-CSEG OCI1A_Interrupt 00000018
-CSEG table        00000024
+DEF  temp         r19
+DEF  currentFloor r20
+DEF  destinationFloor r21
+DEF  requested    r22
+DEF  state        r23
+EQU  PARADO       00000000
+EQU  DESCENDO     00000001
+EQU  SUBINDO      00000002
 EQU  PRESCALE     00000004
 EQU  PRESCALE_DIV 00000100
 EQU  WGM          00000004
-EQU  TOP          0000003f
-CSEG main_lp      0000004e
+EQU  TOP          0000f424
+CSEG reset        00000018
+CSEG PCI1addr_Interruption 0000003f
+CSEG PCI2addr_Interruption 0000004a
+CSEG OC1A_Interrupt 00000055
+CSEG initialize   0000006e
+CSEG enqueue      00000076
+CSEG goDown       0000005c
+CSEG loop1        0000005f
+CSEG skip1        00000063
+CSEG goUp         00000065
+CSEG loop2        00000068
+CSEG skip2        0000006c
+CSEG skip3        00000074
+CSEG main         00000081
+CSEG skip4        0000007d
+CSEG dequeue      0000007e
