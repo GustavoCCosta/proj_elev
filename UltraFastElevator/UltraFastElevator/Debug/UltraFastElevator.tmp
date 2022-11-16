@@ -1,0 +1,65 @@
+<ASSEMBLER_INFO>
+ <VERSION>2.2.8</VERSION>
+ <DEVICE>"ATmega328P"</DEVICE>
+ <WORKING_DIR>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\Debug</WORKING_DIR>
+ <INCLUDE_PATH>
+  <DIR>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\avrasm\inc</DIR>
+  <DIR>C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avrassembler\Include</DIR>
+  <DIR></DIR>
+ </INCLUDE_PATH>
+ <SOURCE_FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</SOURCE_FILE>
+ <INCLUDED_FILES>
+  <FILE>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\avrasm\inc\m328Pdef.inc</FILE>
+ </INCLUDED_FILES>
+ <OBJECT_FILES>
+  <FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\Debug\UltraFastElevator.obj</FILE>
+ </OBJECT_FILES>
+ <HEX_FILES>
+  <FILE>UltraFastElevator.hex</FILE>
+ </HEX_FILES>
+ <OUTPUT_FILES>
+  <FILE>UltraFastElevator.map</FILE>
+  <FILE>UltraFastElevator.lss</FILE>
+ </OUTPUT_FILES>
+ <LABELS>
+  <queue><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>8</LINE></queue>
+  <reset><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>49</LINE></reset>
+  <PCI2addr_Interruption><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>136</LINE></PCI2addr_Interruption>
+  <OC1A_Interrupt><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>167</LINE></OC1A_Interrupt>
+  <initialize><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>313</LINE></initialize>
+  <skip6><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>157</LINE></skip6>
+  <skip5><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>155</LINE></skip5>
+  <enqueue><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>331</LINE></enqueue>
+  <goDown><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>183</LINE></goDown>
+  <goDown_loopIfDifferent><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>192</LINE></goDown_loopIfDifferent>
+  <goDown_jumpIfEqual><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>209</LINE></goDown_jumpIfEqual>
+  <goDown_waiting3seconds><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>207</LINE></goDown_waiting3seconds>
+  <parseDisplay><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>464</LINE></parseDisplay>
+  <dequeue><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>402</LINE></dequeue>
+  <goDown_ringBuzzerAfter5seconds><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>227</LINE></goDown_ringBuzzerAfter5seconds>
+  <goDown_turnOffBuzzerAfter5seconds><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>237</LINE></goDown_turnOffBuzzerAfter5seconds>
+  <goUp><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>248</LINE></goUp>
+  <goUp_loopIfDifferent><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>258</LINE></goUp_loopIfDifferent>
+  <goUp_skipIfEqual><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>275</LINE></goUp_skipIfEqual>
+  <goUp_waiting3seconds><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>273</LINE></goUp_waiting3seconds>
+  <goUp_ringBuzzerAfter5seconds><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>291</LINE></goUp_ringBuzzerAfter5seconds>
+  <goUp_turnOffBuzzerAfter5seconds><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>301</LINE></goUp_turnOffBuzzerAfter5seconds>
+  <main><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>505</LINE></main>
+  <skip4><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>344</LINE></skip4>
+  <parseEnqueue><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>349</LINE></parseEnqueue>
+  <Format_QueueHasSizeZero><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>365</LINE></Format_QueueHasSizeZero>
+  <Format_QueueHasSizeOne><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>373</LINE></Format_QueueHasSizeOne>
+  <Format_QueueHasSizeTwo><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>382</LINE></Format_QueueHasSizeTwo>
+  <Format_QueueHasSizeThree><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>390</LINE></Format_QueueHasSizeThree>
+  <Format_endSwitch><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>397</LINE></Format_endSwitch>
+  <resolve><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>434</LINE></resolve>
+  <resolve_Return><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>460</LINE></resolve_Return>
+  <resolve_BranchIfLower><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>456</LINE></resolve_BranchIfLower>
+  <resolve_endSwitch><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>458</LINE></resolve_endSwitch>
+  <parseDisplay_numberZero><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>481</LINE></parseDisplay_numberZero>
+  <parseDisplay_numberOne><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>486</LINE></parseDisplay_numberOne>
+  <parseDisplay_numberTwo><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>491</LINE></parseDisplay_numberTwo>
+  <parseDisplay_numberThree><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>496</LINE></parseDisplay_numberThree>
+  <parseDisplay_endSwitch><FILE>C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm</FILE><LINE>501</LINE></parseDisplay_endSwitch>
+ </LABELS>
+</ASSEMBLER_INFO>
