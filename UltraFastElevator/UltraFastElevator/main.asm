@@ -8,6 +8,7 @@
 queue:	.byte	2
 
 .cseg
+.def buttonPress = r16
 .def timerTimeCount = r17
 .def queueTop = r18
 .def temp = r19
@@ -18,31 +19,34 @@ queue:	.byte	2
 .def queueSize = r24
 .def temp1 = r25
 
-.equ PARADO = 0
-.equ DESCENDO = 1
-.equ SUBINDO = 2
+.equ STOPPED = 0
+.equ GOING_DOWN = 1
+.equ GOING_UP = 2
 
 .equ PRESCALE = 0b100		;binary code to /256 prescale
 .equ PRESCALE_DIV = 256		;for calc
 
 #define CLOCK 16.0e6			;Clock speed at 16Mhz
 #define DELAY  1				;Delay seconds
+#define INF 0xEE
+
 .equ WGM = 0b0100			;Waveform generation mode: CTC = CLEAR TIME AND COMPARE
 .equ TOP = int(0.5 + ((CLOCK/PRESCALE_DIV)*DELAY))
 
 .cseg							;Code Memory
 jmp reset						;Cold Start
 
-;.org PCI1addr
-;jmp PCI1addr_Interruption
+/* Locate PINC Pin Change Interruption */
+.org PCI1addr
+jmp ButtonPINC_Interruption
 
-/* Locate Pin Change Interruption */
+/* Locate PIND Pin Change Interruption */
 .org PCI2addr
-jmp PCI2addr_Interruption
+jmp ButtonPIND_Interruption
 
 /* Locate 16-bits Timer Interruption */
-.org OC1Aaddr					;;!!
-jmp OC1A_Interrupt				;Interruption 16bits timer  ;;!!
+.org OC1Aaddr					
+jmp OneSecondTimer				
 
 reset:
 	cli
@@ -85,9 +89,9 @@ reset:
 	where DDRD is the register responsable for PORTD */
 	ldi temp, 0x00	
 	out DDRD, temp 
-	/* 	Set DDRC as Output (0xFF)
+	/* 	Set DDRC as Input (0x00)
 	where DDRC is the register responsable for PORTC */
-	ldi temp, 0xFF	
+	ldi temp, 0x00	
 	out DDRC, temp	
 	/* 	Set DDRB as Output (0xFF)
 	where DDB is the register responsable for PORTB */
@@ -99,13 +103,16 @@ reset:
 	;CONTROL REGISTERS FOR PIN INTERRUPTION
 
 	/*Enable PCI on PIND (where PCI = Pin Change Interruption) */
-	ldi temp, (1<<PCIE2)
+	ldi temp, (1<<PCIE2) | (1<<PCIE1)
 	sts PCICR, temp	
 	/* Enable PCI on all pins of PIND */
 	ldi temp, 0xFF	
 	sts PCMSK2, temp
+	/* Enable PCI on all pins of PINC */
+	ldi temp, 0xFF	
+	sts PCMSK1, temp
 
-	;ldi temp, (1<<PCINT12) | (1<<PCINT13)	;0001 1000 = 0x18
+	;ldi temp, (1<<PCINT12) | (1<<PCINT13)	
 	;sts PCMSK1, temp; SET INTERRUPTION ON PIN 1 and 2 OF PORT C
 	;END CONTROL REGISTERS FOR PIN INTERRUPTION
 
@@ -113,242 +120,266 @@ reset:
 
 	rjmp initialize	;Goes to initialize Code.
 
-	/*
-PCI1addr_Interruption:;PORT C INTERRUPTION
-	;BACKUP VALUES BEFORE INTERRUPTION
-	push temp
-	in temp, SREG
-	push temp
-	;END
-	;INTERRUPT THINGS
-	;CLOSE AND OPEN
-	;END INTERRUPT THINGS
-	;RESTORE VALUES BEFORE INTERRUPTION
-	pop temp
-	out SREG, temp
-	pop temp
-	;END
-	reti
-	*/
 
-PCI2addr_Interruption:;PORT D INTERRUPTION
-	;BACKUP VALUES BEFORE INTERRUPTION
-	push temp
-	in temp, SREG
-	push temp
-	;END
-
-	;INTERRUPT THINGS
-
-	/* Inserir andar apertado na queue */
-	in targetFloor, PIND
-	cpi targetFloor, 0
-	breq skip6
-	cpi targetFloor, 0x09
-	brlo skip5
+/* */
+ButtonPINC_Interruption:
 	/* */
-	ldi temp1, (1<<4)
-	mul targetFloor, temp1
-	mov targetFloor, r1
-	skip5:
-	call enqueue
-	skip6:
+	push temp
+	in temp, SREG
+	push temp
 
-	;END INTERRUPT THINGS
-	;RESTORE VALUES BEFORE INTERRUPTION
+	/* Checks if PORTC output is: 
+	; 0000 (null)
+	; 0001 (open door)
+	; 0010 (close door)*/
+	in temp, PINC
+		
+	cpi temp, 0 
+	breq ButtonPINC_isZero
+	cpi temp, 1
+	breq ButtonPINC_isOne
+		ldi timerTimeCount, INF
+		rjmp ButtonPINC_endSwitch
+
+	ButtonPINC_isOne:
+		ldi timerTimeCount, INF
+		rjmp ButtonPINC_endSwitch
+	ButtonPINC_isZero:
+	ButtonPINC_endSwitch:
+	
+
+	/* */
 	pop temp
 	out SREG, temp
 	pop temp
-	;END
+
 	reti
 	
 
-OC1A_Interrupt:	;TIMER INTERRUPTION 16BITS
-	;BACKUP VALUES BEFORE DO INTERRUPT
+ButtonPIND_Interruption:
+	push temp
+	in temp, SREG
+	push temp
+	
+	/* Checks if PORTD output is: 
+	; 0000 (null)
+	; 0001 (inside request for ground floor)
+	; 0010 (inside request for first door)
+	; 0100 (inside request for second door)
+	; 1000 (inside request for third door) 
+	; 0001 0000 (outside request for ground floor)
+	; 0010 0000 (outside request for first floor)
+	; 0100 0000 (outside request for second floor)
+	; 1000 0000 (outside request for third floor) */
+	in targetFloor, PIND
+	cpi targetFloor, 0
+	breq ButtonPIND_isZero
+	cpi targetFloor, 0x09
+	brlo ButtonPIND_isInside
+		/* Format output - shift right (1>>4) */
+		ldi temp1, (1<<4)
+		mul targetFloor, temp1
+		mov targetFloor, r1
+	ButtonPIND_isInside:
+		call enqueue
+	ButtonPIND_isZero:
+
+	pop temp
+	out SREG, temp
+	pop temp
+
+	reti
+	
+
+/* Uses timers to count seconds and store on variable */
+OneSecondTimer:	
 	push TEMP
 	in TEMP, SREG
 	push TEMP
-	;END
 	
+	/* Increase timeCount by one (1 second has passed) */
 	inc timerTimeCount 
 
-	;RESTORE VALUES BEFORE DO INTERRUPT
 	pop TEMP
 	out SREG, TEMP
 	pop TEMP
-	;END
+
 	reti
-	
+
+/* Moves elevator down until requested floor */
 goDown:
 
-	/* */
+	/* Get queue top */
 	ldi temp, (1<<4)
 	lds temp1, queue+1
 	mul temp1, temp
 	mov queueTop, r1
 
-	ldi state, DESCENDO					; Sets state as DESCENDO
+	/* Sets states as GOING DOWN */
+	ldi state, GOING_DOWN	
+				
+	/* Moves elevator down */
 	goDown_loopIfDifferent: 
-		cp currentFloor, queueTop		; Compare
-		breq goDown_jumpIfEqual			; Branch if not equal (!=)
+		cp currentFloor, queueTop		
+		breq goDown_jumpIfEqual			
 		 
-		/* se reg interrupcao 8 bits = 1  */
+		/* If three seconds has passed, go down.  */
 		cpi timerTimeCount, 3
-		brne goDown_waiting3seconds
-		/* */
+		brlo goDown_waiting3seconds
+		/* Shift current floor to right (goes to a lower floor) */
 		lsr currentFloor
-		/* */
+		/* Update currentFloor on display */
 		call parseDisplay
-		out PORTC, currentFloor
+		/* Reset timer */
 		ldi timerTimeCount, 0
-		
-		/* reg interrupcao 8 bits = 0 */
+
 		goDown_waiting3seconds:
-		rjmp goDown_loopIfDifferent
+			rjmp goDown_loopIfDifferent
 	goDown_jumpIfEqual: 
 
-	ldi state, PARADO
+	ldi state, STOPPED
 
-	
-	/* */
+	/* Request done, so remove from queue */
 	call dequeue
 
-	/* Chegou no andar, acender led e tocar buzzer depois de 5 segundos */
+	/*  */
+	call turnOnLed
 
-	/* Acender led */
-	in temp, PORTB 
-	ldi temp1, 1<<4
-	or temp, temp1
-	out PORTB, temp
-
-	/* Toca o buzzer depois de 5 segundos */
+	/* Turn on buzzer after 5 seconds */
 	ldi timerTimeCount, 0
 	goDown_ringBuzzerAfter5seconds:
-		cpi timerTimeCount, 2
-		brne goDown_ringBuzzerAfter5seconds
-	in temp, PORTB 
-	ldi temp1, 1<<5
-	or temp, temp1
-	out PORTB, temp
+	cpi timerTimeCount, 5
+	brlo goDown_ringBuzzerAfter5seconds
+	call turnOnBuzzer
 
-	/* Desligar os dois depois de 5 segundos */
+	/* Turn off devices after 5 seconds */
 	ldi timerTimeCount, 0
 	goDown_turnOffBuzzerAfter5seconds:
-		cpi timerTimeCount, 2
-		brne goDown_turnOffBuzzerAfter5seconds
-	in temp, PORTB
-	ldi temp1, 0x30
-	eor temp, temp1
-	out PORTB, temp
-
+	cpi timerTimeCount, 5
+	brlo goDown_turnOffBuzzerAfter5seconds
+	call turnOffDevices
 
 	ret
 
 goUp:
-	/* */
+	/* Get queue top */
 	ldi temp, (1<<4)
 	lds temp1, queue+1
 	mul temp1, temp
 	mov queueTop, r1
 			
-	ldi state, SUBINDO					; Sets state as DESCENDO
+	/* Set state as GOING UP*/
+	ldi state, GOING_UP			
 
-
+	/* Moves elevator up */
 	goUp_loopIfDifferent:
-		cp currentFloor, queueTop	; Compare 
-		breq goUp_skipIfEqual							; Branch if not equal (!=)
-		/* TIMER:: Wait 3000ms */
+		cp currentFloor, queueTop	
+		breq goUp_skipIfEqual
+									
+		/* If three seconds has passed, go down.  */
 		cpi timerTimeCount, 3
-		brne goUp_waiting3seconds
-		;call wait3seconds
-		/* */
+		brlo goUp_waiting3seconds
+		/* Shift current floor to left (goes to a higher floor) */
 		lsl currentFloor
-		/* */
+		/* Update currentFloor on display */
 		call parseDisplay
-
-		out PORTC, currentFloor
-
+		/* Reset timer */
 		ldi timerTimeCount, 0
+
 		goUp_waiting3seconds:
-		rjmp goUp_loopIfDifferent
+			rjmp goUp_loopIfDifferent
 	goUp_skipIfEqual: 
 
-	ldi state, PARADO
+	ldi state, STOPPED
 
-	/* */
+	/* Request done, so remove from queue */
 	call dequeue
 	
-	/* Chegou no andar, acender led e tocar buzzer depois de 5 segundos */
-	/* Acender led */
+	/*  */
+	call turnOnLed
+
+	/* Turn on buzzer after 5 seconds */
+	ldi timerTimeCount, 0
+	goUp_ringBuzzerAfter5seconds:
+	cpi timerTimeCount, 5
+	brlo goUp_ringBuzzerAfter5seconds
+	call turnOnBuzzer
+
+	/* Turn off devices after 5 seconds */
+	ldi timerTimeCount, 0
+	goUp_turnOffBuzzerAfter5seconds:
+	cpi timerTimeCount, 5
+	brlo goUp_turnOffBuzzerAfter5seconds
+	call turnOffDevices
+		
+	/*  */
+	ret
+
+turnOnLed:
+	/* */
 	in temp, PORTB 
 	ldi temp1, 1<<4
 	or temp, temp1
 	out PORTB, temp
+	ret
 
-	/* Toca o buzzer depois de 5 segundos */
-	ldi timerTimeCount, 0
-	goUp_ringBuzzerAfter5seconds:
-		cpi timerTimeCount, 2
-		brne goUp_ringBuzzerAfter5seconds
+turnOnBuzzer:
+	/* */
 	in temp, PORTB 
 	ldi temp1, 1<<5
 	or temp, temp1
 	out PORTB, temp
-
-	/* Desligar os dois depois de 5 segundos */
-	ldi timerTimeCount, 0
-	goUp_turnOffBuzzerAfter5seconds:
-		cpi timerTimeCount, 2
-		brne goUp_turnOffBuzzerAfter5seconds
-	in temp, PORTB
-	ldi temp1, 0x30
-	eor temp, temp1
-	out PORTB, temp
-
-	
-	/* Acionar o buzzer por X segundos */
 	ret
 
-initialize:
-	;Note que não usamos persistência, logo, os registradores poderão conter lixo.
+turnOffDevices:
+	in temp, PORTB
+	ldi temp1, 0x30	
+	eor temp, temp1
+	out PORTB, temp
+	ret
+
+initialize:	
+	/* Set current floor as ground (0001) */
 	ldi currentFloor, 0x01
 	
+	/* Set current floor as ground (0001) */
 	clr targetFloor
-	ldi requested, 0x00
+
+	/* Set requested floors (visited array) as empty
+	example: if queue = [3, 2, 1], then request = [0, 1, 1, 1].
+	This avoid multiple insertions of the same element on queue. */
+	clr requested
+
+	/* Set current floor as ground (0001) */
 	clr queueSize
 
-	ldi state, PARADO
+	/* Set state as STOPPED */
+	ldi state, STOPPED
 
-	rjmp main					;Goes to Main Code.
-/* END OF MOVEMENT CONTROL */
-
+	rjmp main					
 
 /* STACK CONTROL */
 
-
-/* Decide se vai colocar na queue ou nao, e coloca */
+/* Decides if will insert, and effectively insert on the queue */
 enqueue:
 	
+	/*	Checks if target floor on pressed button is alreary requested. 
+		example: 
+			if queue = [3, 1, 2], then request = [0, 1, 1, 1],
+			if someone requests floor 3, then nothing happens.*/
 	mov temp, requested
-	and temp, targetFloor
-	cpi temp, 0
-		
-;	(requested & targetFloor) != 0
-	;0001 & 0000 = 0000
-
-	brne skip4
+	and temp, targetFloor 
+	cpi temp, 0				; (requested & targetFloor) != 0
+	/* if (requested & targetFloor) == 0 , insert on queue */	
+	brne enqueue_IsAlreadyRequested
 	call parseEnqueue
-	or requested, targetFloor	
-
-	skip4:		
-	; 0001 0010 
+	or requested, targetFloor
+	enqueue_IsAlreadyRequested:	
 	ret
 
-/* */ 
+/* Inserts parsed output in the queue */ 
 parseEnqueue:
-	/* destino esta em targetFloor, precisamos adicionar na queue*/
-	/* o numero de requisicoes na fila é qnt */
-	
+	/* */	
 	mov temp, targetFloor
 
 	cpi queueSize, 0
@@ -360,24 +391,33 @@ parseEnqueue:
 	cpi queueSize, 3
 	breq Format_QueueHasSizeThree
 
-	/* [XXXX] 0000 0000 0000 */
+	/* 	Performs insertion if queue is empty
+		queue = 0000 0000 0000 0000 -> queue = [XXXX] 0000 0000 0000.
+		example: queue = 0000 0000 0000 0000,
+				 targetFloor = 1000 (third floor),
+				 then updated queue = 1000 0000 0000 0000. */
 	Format_QueueHasSizeZero:
 	ldi temp1, (1<<4)
 	mul temp, temp1
-	sts queue+1, r0
-
+	sts queue+1, r0		; queue+1 = HIGH(queue)
 	rjmp Format_endSwitch	
 		
-	/* [YYYY] [XXXX] 0000 0000 */
+	/* 	Performs insertion if queue has size one
+		queue = [AAAA] 0000 0000 0000 -> queue = [AAAA] [XXXX] 0000 0000.
+		example: queue = 1000 0000 0000 0000,
+				 targetFloor = 0010 (first floor),
+				 then updated queue = 1000 0010 0000 0000. */
 	Format_QueueHasSizeOne:
-	lds temp1, queue+1 ; temp = 0001 0000
-	or temp, temp1 ; temp | dest = 0001 0000 | 0000 0010 = 0001 0010 
+	lds temp1, queue+1 
+	or temp, temp1  
 	sts queue+1, temp
-		
-
 	rjmp Format_endSwitch
 
-	/* 0000 0000 [XXXX] 0000 */
+	/* 	Performs insertion if queue has size two
+		queue = [AAAA] [BBBB] 0000 0000 -> queue = [AAAA] [BBBB] [XXXX] 0000.
+		example: queue = 0010 1000 0000 0000,
+				 targetFloor = 0100 (third floor),
+				 then updated queue = 0010 1000 0100 0000. */
 	Format_QueueHasSizeTwo:
 	ldi temp1, (1<<4)
 	mul temp, temp1
@@ -385,12 +425,15 @@ parseEnqueue:
 
 	rjmp Format_endSwitch	
 
-	/* 0000 0000 [YYYY] [XXXX] */
+	/* 	Performs insertion if queue has size three
+		queue = [AAAA] [BBBB] [CCCC] 0000 -> queue = [AAAA] [BBBB] [CCCC] [XXXX].
+		example: queue = 0010 1000 0100 0000,
+				 targetFloor = 0001 (ground floor),
+				 then updated queue = 0010 1000 0100 0000. */
 	Format_QueueHasSizeThree:
 	lds temp1, queue
 	or temp, temp1
 	sts queue, temp
-
 	rjmp Format_endSwitch	
 
 	Format_EndSwitch:
@@ -398,56 +441,67 @@ parseEnqueue:
 
 	ret
 
+/* Removes the queue top from the queue */
 dequeue:
+	/*  Removes current floor from requested floors. 
+		example: requested [0, 1, 0, 1] = 1010 
+				 currentFloor = 1000 (third floor)
+				 updated requested = 1010 xor 1000 = 0010 [0, 1, 0, 0] */
 	eor requested, currentFloor
 
-	/* carregar (high(queue)<<4) em temp1 
-	[1000 0100] [1 0000] = [0000 1000 0100 0000] */
+	/* Shifts HIGH(queue) to the left four times
+		example:
+			queue = 0000 0000 1000 0100 
+			updated queue = 0000 1000 0100 0000 */
 	lds temp1, queue+1
 	ldi temp, (1<<4)
 	mul temp1, temp
 	sts queue+1, r0
 
-	/* */
-
-	; carregar (low(queue)>>4) temp1 
+	/* Shifts bottom of HIGH(queue) with top of LOW(queue) 
+		to the left four times
+		example:
+			queue = 0000 1000 0001 0100 
+			updated queue = 1000 0001 0100 0000 */
 	lds temp1, queue
 	ldi temp, (1<<4)
 	mul temp1, temp
-	; faz (low(queue)>>4) | high(queue) 
+
 	lds temp, queue+1
 	or temp, r1
 	sts queue+1, temp
 
-	/* */
-	/* carregar (low(queue)<<4) em temp1 
-	[1000 1000] * [1 0000] = [0000 1000 1000 0000] */
+	/* Shifts LOW(queue) to the left four times
+		example:
+			queue = 0000 0000 1000 0100 
+			updated queue = 0000 1000 0100 0000 */
 	lds temp1, queue
 	ldi temp, (1<<4)
 	mul temp1, temp
 	sts queue, r0
 
+	/* */
 	dec queueSize
 	ret
 
+/* Solve the most important request (queue top) */
 resolve:
-	/* olha o topo da fila
-	se o topo da fila > current floor ---  chame goUp
-	se o topo da fila < current floor chame goDown */
-	
-	/* Checa se tem alguem na fila */
+
+	/* If nobody on queue, return */
 	cpi queueSize, 0
 	breq resolve_Return
 
-	/* Pega o topo da fila */
+	/* Get queue top */
 	ldi temp, (1<<4)
 	lds temp1, queue+1
 	mul temp1, temp
 	mov queueTop, r1
 
-	/* Reset 3 second timer */
+	/* Reset timer count */
 	ldi timerTimeCount, 0
 	
+	/* If currentFloor > queueTop, call goDown (move elevator down).
+		otherwise, call goUp (move elevator up) */
 	cp currentFloor, queueTop
 	brlo resolve_BranchIfLower
 		call goDown
@@ -455,28 +509,30 @@ resolve:
 	resolve_BranchIfLower:		
 		call goUp
 	resolve_endSwitch:
-
 	resolve_Return:
 
 	ret
 
+/* Format current floor into printable display output */
 parseDisplay:
-	/* pega currentFloor e joga no display
-	XXXX = ABCD
-	0001 = 0001
-	0010 = 0010
-	0100 = 0011
-	1000 = 0100 */
 
-	cpi currentFloor, (1<<0) ; 0001
-	breq parseDisplay_numberZero
-	cpi currentFloor, (1<<1) ; 0010
-	breq parseDisplay_numberOne
-	cpi currentFloor, (1<<2) ; 0100
-	breq parseDisplay_numberTwo
-	cpi currentFloor, (1<<3) ; 1000
-	breq parseDisplay_numberThree
 
+	/* 	example:
+		(current floor) XXXX = (display output) ABCD
+						0001 = 0001
+						0010 = 0010
+						0100 = 0011
+						1000 = 0100 */
+		 
+	cpi currentFloor, (1<<0)			; 0001
+	breq parseDisplay_numberZero		; 0001 -> 0001
+	cpi currentFloor, (1<<1)			; 0010
+	breq parseDisplay_numberOne		    ; 0010 -> 0010
+	cpi currentFloor, (1<<2)			; 0100
+	breq parseDisplay_numberTwo			; 0100 -> 0011
+	cpi currentFloor, (1<<3)			; 1000
+	breq parseDisplay_numberThree		; 1000 -> 0100
+	
 	parseDisplay_numberZero:
 	ldi temp, 0
 	out PORTB, temp
@@ -500,14 +556,12 @@ parseDisplay:
 	parseDisplay_endSwitch:
 	ret
 
-
 main:
 	
-	/* Usar currentFloor para decidir se vai para cima ou para baixo com goUp, goDown */
-	;lds temp, queueSize
-	
+	/* Update display */	
 	call parseDisplay
-	/* */
+
+	/* Check if something needs to be done */
 	call resolve
-	;lds temp, queue+1
+
 	rjmp main

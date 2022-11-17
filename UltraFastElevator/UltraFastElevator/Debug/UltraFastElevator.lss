@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.8  C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm Wed Nov 16 05:40:06 2022
+AVRASM ver. 2.2.8  C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\UltraFastElevator\main.asm Thu Nov 17 02:18:17 2022
 
 [builtin](2): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\avrasm\inc\m328Pdef.inc'
 [builtin](2): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\avrasm\inc\m328Pdef.inc'
@@ -994,6 +994,7 @@ AVRASM ver. 2.2.8  C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\U
 000100                           queue:	.byte	2
                                  
                                  .cseg
+                                 .def buttonPress = r16
                                  .def timerTimeCount = r17
                                  .def queueTop = r18
                                  .def temp = r19
@@ -1004,33 +1005,34 @@ AVRASM ver. 2.2.8  C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\U
                                  .def queueSize = r24
                                  .def temp1 = r25
                                  
-                                 
-                                 
-                                 .equ PARADO = 0
-                                 .equ DESCENDO = 1
-                                 .equ SUBINDO = 2
+                                 .equ STOPPED = 0
+                                 .equ GOING_DOWN = 1
+                                 .equ GOING_UP = 2
                                  
                                  .equ PRESCALE = 0b100		;binary code to /256 prescale
                                  .equ PRESCALE_DIV = 256		;for calc
                                  
                                  #define CLOCK 16.0e6			;Clock speed at 16Mhz
                                  #define DELAY  1				;Delay seconds
+                                 #define INF 0xEE
+                                 
                                  .equ WGM = 0b0100			;Waveform generation mode: CTC = CLEAR TIME AND COMPARE
                                  .equ TOP = int(0.5 + ((CLOCK/PRESCALE_DIV)*DELAY))
                                  
                                  .cseg							;Code Memory
 000000 940c 0018                 jmp reset						;Cold Start
                                  
-                                 ;.org PCI1addr
-                                 ;jmp PCI1addr_Interruption
+                                 /* Locate PINC Pin Change Interruption */
+                                 .org PCI1addr
+000008 940c 003f                 jmp ButtonPINC_Interruption
                                  
-                                 /* Locate Pin Change Interruption */
+                                 /* Locate PIND Pin Change Interruption */
                                  .org PCI2addr
-00000a 940c 003c                 jmp PCI2addr_Interruption
+00000a 940c 004f                 jmp ButtonPIND_Interruption
                                  
                                  /* Locate 16-bits Timer Interruption */
-                                 .org OC1Aaddr					;;!!
-000016 940c 004d                 jmp OC1A_Interrupt				;Interruption 16bits timer  ;;!!
+                                 .org OC1Aaddr					
+000016 940c 0060                 jmp OneSecondTimer				
                                  
                                  reset:
 000018 94f8                      	cli
@@ -1072,9 +1074,9 @@ AVRASM ver. 2.2.8  C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\U
                                  	where DDRD is the register responsable for PORTD */
 00002e e030                      	ldi temp, 0x00	
 00002f b93a                      	out DDRD, temp 
-                                 	/* 	Set DDRC as Output (0xFF)
+                                 	/* 	Set DDRC as Input (0x00)
                                  	where DDRC is the register responsable for PORTC */
-000030 ef3f                      	ldi temp, 0xFF	
+000030 e030                      	ldi temp, 0x00	
 000031 b937                      	out DDRC, temp	
                                  	/* 	Set DDRB as Output (0xFF)
                                  	where DDB is the register responsable for PORTB */
@@ -1086,416 +1088,467 @@ AVRASM ver. 2.2.8  C:\Users\thiag\Documents\Atmel Studio\7.0\UltraFastElevator\U
                                  	;CONTROL REGISTERS FOR PIN INTERRUPTION
                                  
                                  	/*Enable PCI on PIND (where PCI = Pin Change Interruption) */
-000034 e034                      	ldi temp, (1<<PCIE2)
+000034 e036                      	ldi temp, (1<<PCIE2) | (1<<PCIE1)
 000035 9330 0068                 	sts PCICR, temp	
                                  	/* Enable PCI on all pins of PIND */
 000037 ef3f                      	ldi temp, 0xFF	
 000038 9330 006d                 	sts PCMSK2, temp
+                                 	/* Enable PCI on all pins of PINC */
+00003a ef3f                      	ldi temp, 0xFF	
+00003b 9330 006c                 	sts PCMSK1, temp
                                  
-                                 	;ldi temp, (1<<PCINT12) | (1<<PCINT13)	;0001 1000 = 0x18
+                                 	;ldi temp, (1<<PCINT12) | (1<<PCINT13)	
                                  	;sts PCMSK1, temp; SET INTERRUPTION ON PIN 1 and 2 OF PORT C
                                  	;END CONTROL REGISTERS FOR PIN INTERRUPTION
                                  
-00003a 9478                      	sei							;SET GLOBAL INTERRUPT ENABLE BIT
+00003d 9478                      	sei							;SET GLOBAL INTERRUPT ENABLE BIT
                                  
-00003b c065                      	rjmp initialize	;Goes to initialize Code.
+00003e c076                      	rjmp initialize	;Goes to initialize Code.
                                  
-                                 	/*
-                                 PCI1addr_Interruption:;PORT C INTERRUPTION
-                                 	;BACKUP VALUES BEFORE INTERRUPTION
-                                 	push temp
-                                 	in temp, SREG
-                                 	push temp
-                                 	;END
-                                 	;INTERRUPT THINGS
-                                 	;CLOSE AND OPEN
-                                 	;END INTERRUPT THINGS
-                                 	;RESTORE VALUES BEFORE INTERRUPTION
-                                 	pop temp
-                                 	out SREG, temp
-                                 	pop temp
-                                 	;END
-                                 	reti
-                                 	*/
                                  
-                                 PCI2addr_Interruption:;PORT D INTERRUPTION
-                                 	;BACKUP VALUES BEFORE INTERRUPTION
-00003c 933f                      	push temp
-00003d b73f                      	in temp, SREG
-00003e 933f                      	push temp
-                                 	;END
-                                 
-                                 	;INTERRUPT THINGS
-                                 
-                                 	/* Inserir andar apertado na queue */
-00003f b159                      	in targetFloor, PIND
-000040 3050                      	cpi targetFloor, 0
-000041 f039                      	breq skip6
-000042 3059                      	cpi targetFloor, 0x09
-000043 f018                      	brlo skip5
+                                 /* */
+                                 ButtonPINC_Interruption:
                                  	/* */
-000044 e190                      	ldi temp1, (1<<4)
-000045 9f59                      	mul targetFloor, temp1
-000046 2d51                      	mov targetFloor, r1
-                                 	skip5:
-000047 940e 00a7                 	call enqueue
-                                 	skip6:
+00003f 933f                      	push temp
+000040 b73f                      	in temp, SREG
+000041 933f                      	push temp
                                  
-                                 	;END INTERRUPT THINGS
-                                 	;RESTORE VALUES BEFORE INTERRUPTION
-000049 913f                      	pop temp
-00004a bf3f                      	out SREG, temp
+                                 	/* Checks if PORTC output is: 
+                                 	; 0000 (null)
+                                 	; 0001 (open door)
+                                 	; 0010 (close door)*/
+000042 b136                      	in temp, PINC
+                                 		
+000043 3030                      	cpi temp, 0 
+000044 f031                      	breq ButtonPINC_isZero
+000045 3031                      	cpi temp, 1
+000046 f011                      	breq ButtonPINC_isOne
+000047 ee1e                      		ldi timerTimeCount, INF
+000048 c002                      		rjmp ButtonPINC_endSwitch
+                                 
+                                 	ButtonPINC_isOne:
+000049 ee1e                      		ldi timerTimeCount, INF
+00004a c000                      		rjmp ButtonPINC_endSwitch
+                                 	ButtonPINC_isZero:
+                                 	ButtonPINC_endSwitch:
+                                 	
+                                 
+                                 	/* */
 00004b 913f                      	pop temp
-                                 	;END
-00004c 9518                      	reti
-                                 	
-                                 OC1A_Interrupt:	;TIMER INTERRUPTION 16BITS
-                                 	;BACKUP VALUES BEFORE DO INTERRUPT
-00004d 933f                      	push TEMP
-00004e b73f                      	in TEMP, SREG
-00004f 933f                      	push TEMP
-                                 	;END
-                                 	
-000050 9513                      	inc timerTimeCount 
+00004c bf3f                      	out SREG, temp
+00004d 913f                      	pop temp
                                  
-                                 	;RESTORE VALUES BEFORE DO INTERRUPT
-000051 913f                      	pop TEMP
-000052 bf3f                      	out SREG, TEMP
-000053 913f                      	pop TEMP
-                                 	;END
-000054 9518                      	reti
+00004e 9518                      	reti
                                  	
+                                 
+                                 ButtonPIND_Interruption:
+00004f 933f                      	push temp
+000050 b73f                      	in temp, SREG
+000051 933f                      	push temp
+                                 	
+                                 	/* Checks if PORTD output is: 
+                                 	; 0000 (null)
+                                 	; 0001 (inside request for ground floor)
+                                 	; 0010 (inside request for first door)
+                                 	; 0100 (inside request for second door)
+                                 	; 1000 (inside request for third door) 
+                                 	; 0001 0000 (outside request for ground floor)
+                                 	; 0010 0000 (outside request for first floor)
+                                 	; 0100 0000 (outside request for second floor)
+                                 	; 1000 0000 (outside request for third floor) */
+000052 b159                      	in targetFloor, PIND
+000053 3050                      	cpi targetFloor, 0
+000054 f039                      	breq ButtonPIND_isZero
+000055 3059                      	cpi targetFloor, 0x09
+000056 f018                      	brlo ButtonPIND_isInside
+                                 		/* Format output - shift right (1>>4) */
+000057 e190                      		ldi temp1, (1<<4)
+000058 9f59                      		mul targetFloor, temp1
+000059 2d51                      		mov targetFloor, r1
+                                 	ButtonPIND_isInside:
+00005a 940e 00bb                 		call enqueue
+                                 	ButtonPIND_isZero:
+                                 
+00005c 913f                      	pop temp
+00005d bf3f                      	out SREG, temp
+00005e 913f                      	pop temp
+                                 
+00005f 9518                      	reti
+                                 	
+                                 
+                                 /* Uses timers to count seconds and store on variable */
+                                 OneSecondTimer:	
+000060 933f                      	push TEMP
+000061 b73f                      	in TEMP, SREG
+000062 933f                      	push TEMP
+                                 	
+                                 	/* Increase timeCount by one (1 second has passed) */
+000063 9513                      	inc timerTimeCount 
+                                 
+000064 913f                      	pop TEMP
+000065 bf3f                      	out SREG, TEMP
+000066 913f                      	pop TEMP
+                                 
+000067 9518                      	reti
+                                 
+                                 /* Moves elevator down until requested floor */
                                  goDown:
                                  
-                                 	/* */
-000055 e130                      	ldi temp, (1<<4)
-000056 9190 0101                 	lds temp1, queue+1
-000058 9f93                      	mul temp1, temp
-000059 2d21                      	mov queueTop, r1
+                                 	/* Get queue top */
+000068 e130                      	ldi temp, (1<<4)
+000069 9190 0101                 	lds temp1, queue+1
+00006b 9f93                      	mul temp1, temp
+00006c 2d21                      	mov queueTop, r1
                                  
-00005a e071                      	ldi state, DESCENDO					; Sets state as DESCENDO
+                                 	/* Sets states as GOING DOWN */
+00006d e071                      	ldi state, GOING_DOWN	
+                                 				
+                                 	/* Moves elevator down */
                                  	goDown_loopIfDifferent: 
-00005b 1742                      		cp currentFloor, queueTop		; Compare
-00005c f041                      		breq goDown_jumpIfEqual			; Branch if not equal (!=)
+00006e 1742                      		cp currentFloor, queueTop		
+00006f f039                      		breq goDown_jumpIfEqual			
                                  		 
-                                 		/* se reg interrupcao 8 bits = 1  */
-00005d 3013                      		cpi timerTimeCount, 3
-00005e f429                      		brne goDown_waiting3seconds
-                                 		/* */
-00005f 9546                      		lsr currentFloor
-                                 		/* */
-000060 940e 00f8                 		call parseDisplay
-000062 b948                      		out PORTC, currentFloor
-000063 e010                      		ldi timerTimeCount, 0
-                                 		
-                                 		/* reg interrupcao 8 bits = 0 */
+                                 		/* If three seconds has passed, go down.  */
+000070 3013                      		cpi timerTimeCount, 3
+000071 f020                      		brlo goDown_waiting3seconds
+                                 		/* Shift current floor to right (goes to a lower floor) */
+000072 9546                      		lsr currentFloor
+                                 		/* Update currentFloor on display */
+000073 940e 010c                 		call parseDisplay
+                                 		/* Reset timer */
+000075 e010                      		ldi timerTimeCount, 0
+                                 
                                  		goDown_waiting3seconds:
-000064 cff6                      		rjmp goDown_loopIfDifferent
+000076 cff7                      			rjmp goDown_loopIfDifferent
                                  	goDown_jumpIfEqual: 
                                  
-000065 e070                      	ldi state, PARADO
+000077 e070                      	ldi state, STOPPED
                                  
-                                 	
-                                 	/* */
-000066 940e 00d0                 	call dequeue
+                                 	/* Request done, so remove from queue */
+000078 940e 00e4                 	call dequeue
                                  
-                                 	/* Chegou no andar, acender led e tocar buzzer depois de 5 segundos */
+                                 	/*  */
+00007a 940e 00a6                 	call turnOnLed
                                  
-                                 	/* Acender led */
-000068 b135                      	in temp, PORTB 
-000069 e190                      	ldi temp1, 1<<4
-00006a 2b39                      	or temp, temp1
-00006b b935                      	out PORTB, temp
-                                 
-                                 	/* Toca o buzzer depois de 5 segundos */
-00006c e010                      	ldi timerTimeCount, 0
+                                 	/* Turn on buzzer after 5 seconds */
+00007c e010                      	ldi timerTimeCount, 0
                                  	goDown_ringBuzzerAfter5seconds:
-00006d 3012                      		cpi timerTimeCount, 2
-00006e f7f1                      		brne goDown_ringBuzzerAfter5seconds
-00006f b135                      	in temp, PORTB 
-000070 e290                      	ldi temp1, 1<<5
-000071 2b39                      	or temp, temp1
-000072 b935                      	out PORTB, temp
+00007d 3015                      	cpi timerTimeCount, 5
+00007e f3f0                      	brlo goDown_ringBuzzerAfter5seconds
+00007f 940e 00ab                 	call turnOnBuzzer
                                  
-                                 	/* Desligar os dois depois de 5 segundos */
-000073 e010                      	ldi timerTimeCount, 0
+                                 	/* Turn off devices after 5 seconds */
+000081 e010                      	ldi timerTimeCount, 0
                                  	goDown_turnOffBuzzerAfter5seconds:
-000074 3012                      		cpi timerTimeCount, 2
-000075 f7f1                      		brne goDown_turnOffBuzzerAfter5seconds
-000076 b135                      	in temp, PORTB
-000077 e390                      	ldi temp1, 0x30
-000078 2739                      	eor temp, temp1
-000079 b935                      	out PORTB, temp
+000082 3015                      	cpi timerTimeCount, 5
+000083 f3f0                      	brlo goDown_turnOffBuzzerAfter5seconds
+000084 940e 00b0                 	call turnOffDevices
                                  
-                                 
-00007a 9508                      	ret
+000086 9508                      	ret
                                  
                                  goUp:
-                                 	/* */
-00007b e130                      	ldi temp, (1<<4)
-00007c 9190 0101                 	lds temp1, queue+1
-00007e 9f93                      	mul temp1, temp
-00007f 2d21                      	mov queueTop, r1
+                                 	/* Get queue top */
+000087 e130                      	ldi temp, (1<<4)
+000088 9190 0101                 	lds temp1, queue+1
+00008a 9f93                      	mul temp1, temp
+00008b 2d21                      	mov queueTop, r1
                                  			
-000080 e072                      	ldi state, SUBINDO					; Sets state as DESCENDO
+                                 	/* Set state as GOING UP*/
+00008c e072                      	ldi state, GOING_UP			
                                  
-                                 
+                                 	/* Moves elevator up */
                                  	goUp_loopIfDifferent:
-000081 1742                      		cp currentFloor, queueTop	; Compare 
-000082 f041                      		breq goUp_skipIfEqual							; Branch if not equal (!=)
-                                 		/* TIMER:: Wait 3000ms */
-000083 3013                      		cpi timerTimeCount, 3
-000084 f429                      		brne goUp_waiting3seconds
-                                 		;call wait3seconds
-                                 		/* */
-000085 0f44                      		lsl currentFloor
-                                 		/* */
-000086 940e 00f8                 		call parseDisplay
+00008d 1742                      		cp currentFloor, queueTop	
+00008e f039                      		breq goUp_skipIfEqual
+                                 									
+                                 		/* If three seconds has passed, go down.  */
+00008f 3013                      		cpi timerTimeCount, 3
+000090 f020                      		brlo goUp_waiting3seconds
+                                 		/* Shift current floor to left (goes to a higher floor) */
+000091 0f44                      		lsl currentFloor
+                                 		/* Update currentFloor on display */
+000092 940e 010c                 		call parseDisplay
+                                 		/* Reset timer */
+000094 e010                      		ldi timerTimeCount, 0
                                  
-000088 b948                      		out PORTC, currentFloor
-                                 
-000089 e010                      		ldi timerTimeCount, 0
                                  		goUp_waiting3seconds:
-00008a cff6                      		rjmp goUp_loopIfDifferent
+000095 cff7                      			rjmp goUp_loopIfDifferent
                                  	goUp_skipIfEqual: 
                                  
-00008b e070                      	ldi state, PARADO
+000096 e070                      	ldi state, STOPPED
                                  
-                                 	/* */
-00008c 940e 00d0                 	call dequeue
+                                 	/* Request done, so remove from queue */
+000097 940e 00e4                 	call dequeue
                                  	
-                                 	/* Chegou no andar, acender led e tocar buzzer depois de 5 segundos */
-                                 	/* Acender led */
-00008e b135                      	in temp, PORTB 
-00008f e190                      	ldi temp1, 1<<4
-000090 2b39                      	or temp, temp1
-000091 b935                      	out PORTB, temp
+                                 	/*  */
+000099 940e 00a6                 	call turnOnLed
                                  
-                                 	/* Toca o buzzer depois de 5 segundos */
-000092 e010                      	ldi timerTimeCount, 0
+                                 	/* Turn on buzzer after 5 seconds */
+00009b e010                      	ldi timerTimeCount, 0
                                  	goUp_ringBuzzerAfter5seconds:
-000093 3012                      		cpi timerTimeCount, 2
-000094 f7f1                      		brne goUp_ringBuzzerAfter5seconds
-000095 b135                      	in temp, PORTB 
-000096 e290                      	ldi temp1, 1<<5
-000097 2b39                      	or temp, temp1
-000098 b935                      	out PORTB, temp
+00009c 3015                      	cpi timerTimeCount, 5
+00009d f3f0                      	brlo goUp_ringBuzzerAfter5seconds
+00009e 940e 00ab                 	call turnOnBuzzer
                                  
-                                 	/* Desligar os dois depois de 5 segundos */
-000099 e010                      	ldi timerTimeCount, 0
+                                 	/* Turn off devices after 5 seconds */
+0000a0 e010                      	ldi timerTimeCount, 0
                                  	goUp_turnOffBuzzerAfter5seconds:
-00009a 3012                      		cpi timerTimeCount, 2
-00009b f7f1                      		brne goUp_turnOffBuzzerAfter5seconds
-00009c b135                      	in temp, PORTB
-00009d e390                      	ldi temp1, 0x30
-00009e 2739                      	eor temp, temp1
-00009f b935                      	out PORTB, temp
+0000a1 3015                      	cpi timerTimeCount, 5
+0000a2 f3f0                      	brlo goUp_turnOffBuzzerAfter5seconds
+0000a3 940e 00b0                 	call turnOffDevices
+                                 		
+                                 	/*  */
+0000a5 9508                      	ret
                                  
+                                 turnOnLed:
+                                 	/* */
+0000a6 b135                      	in temp, PORTB 
+0000a7 e190                      	ldi temp1, 1<<4
+0000a8 2b39                      	or temp, temp1
+0000a9 b935                      	out PORTB, temp
+0000aa 9508                      	ret
+                                 
+                                 turnOnBuzzer:
+                                 	/* */
+0000ab b135                      	in temp, PORTB 
+0000ac e290                      	ldi temp1, 1<<5
+0000ad 2b39                      	or temp, temp1
+0000ae b935                      	out PORTB, temp
+0000af 9508                      	ret
+                                 
+                                 turnOffDevices:
+0000b0 b135                      	in temp, PORTB
+0000b1 e390                      	ldi temp1, 0x30	
+0000b2 2739                      	eor temp, temp1
+0000b3 b935                      	out PORTB, temp
+0000b4 9508                      	ret
+                                 
+                                 initialize:	
+                                 	/* Set current floor as ground (0001) */
+0000b5 e041                      	ldi currentFloor, 0x01
                                  	
-                                 	/* Acionar o buzzer por X segundos */
-0000a0 9508                      	ret
+                                 	/* Set current floor as ground (0001) */
+0000b6 2755                      	clr targetFloor
                                  
-                                 initialize:
-                                 	;Note que não usamos persistência, logo, os registradores poderão conter lixo.
-0000a1 e041                      	ldi currentFloor, 0x01
-                                 	
-0000a2 2755                      	clr targetFloor
-0000a3 e060                      	ldi requested, 0x00
-0000a4 2788                      	clr queueSize
+                                 	/* Set requested floors (visited array) as empty
+                                 	example: if queue = [3, 2, 1], then request = [0, 1, 1, 1].
+                                 	This avoid multiple insertions of the same element on queue. */
+0000b7 2766                      	clr requested
                                  
-0000a5 e070                      	ldi state, PARADO
+                                 	/* Set current floor as ground (0001) */
+0000b8 2788                      	clr queueSize
                                  
-0000a6 c066                      	rjmp main					;Goes to Main Code.
-                                 /* END OF MOVEMENT CONTROL */
+                                 	/* Set state as STOPPED */
+0000b9 e070                      	ldi state, STOPPED
                                  
+0000ba c066                      	rjmp main					
                                  
                                  /* STACK CONTROL */
                                  
-                                 
-                                 /* Decide se vai colocar na queue ou nao, e coloca */
+                                 /* Decides if will insert, and effectively insert on the queue */
                                  enqueue:
                                  	
-0000a7 2f36                      	mov temp, requested
-0000a8 2335                      	and temp, targetFloor
-0000a9 3030                      	cpi temp, 0
-                                 		
-                                 ;	(requested & targetFloor) != 0
-                                 	;0001 & 0000 = 0000
+                                 	/*	Checks if target floor on pressed button is alreary requested. 
+                                 		example: 
+                                 			if queue = [3, 1, 2], then request = [0, 1, 1, 1],
+                                 			if someone requests floor 3, then nothing happens.*/
+0000bb 2f36                      	mov temp, requested
+0000bc 2335                      	and temp, targetFloor 
+0000bd 3030                      	cpi temp, 0				; (requested & targetFloor) != 0
+                                 	/* if (requested & targetFloor) == 0 , insert on queue */	
+0000be f419                      	brne enqueue_IsAlreadyRequested
+0000bf 940e 00c3                 	call parseEnqueue
+0000c1 2b65                      	or requested, targetFloor
+                                 	enqueue_IsAlreadyRequested:	
+0000c2 9508                      	ret
                                  
-0000aa f419                      	brne skip4
-0000ab 940e 00af                 	call parseEnqueue
-0000ad 2b65                      	or requested, targetFloor	
-                                 
-                                 	skip4:		
-                                 	; 0001 0010 
-0000ae 9508                      	ret
-                                 
-                                 /* */ 
+                                 /* Inserts parsed output in the queue */ 
                                  parseEnqueue:
-                                 	/* destino esta em targetFloor, precisamos adicionar na queue*/
-                                 	/* o numero de requisicoes na fila é qnt */
-                                 	
-0000af 2f35                      	mov temp, targetFloor
+                                 	/* */	
+0000c3 2f35                      	mov temp, targetFloor
                                  
-0000b0 3080                      	cpi queueSize, 0
-0000b1 f031                      	breq Format_QueueHasSizeZero
-0000b2 3081                      	cpi queueSize, 1
-0000b3 f049                      	breq Format_QueueHasSizeOne
-0000b4 3082                      	cpi queueSize, 2
-0000b5 f069                      	breq Format_QueueHasSizeTwo
-0000b6 3083                      	cpi queueSize, 3
-0000b7 f081                      	breq Format_QueueHasSizeThree
+0000c4 3080                      	cpi queueSize, 0
+0000c5 f031                      	breq Format_QueueHasSizeZero
+0000c6 3081                      	cpi queueSize, 1
+0000c7 f049                      	breq Format_QueueHasSizeOne
+0000c8 3082                      	cpi queueSize, 2
+0000c9 f069                      	breq Format_QueueHasSizeTwo
+0000ca 3083                      	cpi queueSize, 3
+0000cb f081                      	breq Format_QueueHasSizeThree
                                  
-                                 	/* [XXXX] 0000 0000 0000 */
+                                 	/* 	Performs insertion if queue is empty
+                                 		queue = 0000 0000 0000 0000 -> queue = [XXXX] 0000 0000 0000.
+                                 		example: queue = 0000 0000 0000 0000,
+                                 				 targetFloor = 1000 (third floor),
+                                 				 then updated queue = 1000 0000 0000 0000. */
                                  	Format_QueueHasSizeZero:
-0000b8 e190                      	ldi temp1, (1<<4)
-0000b9 9f39                      	mul temp, temp1
-0000ba 9200 0101                 	sts queue+1, r0
-                                 
-0000bc c011                      	rjmp Format_endSwitch	
+0000cc e190                      	ldi temp1, (1<<4)
+0000cd 9f39                      	mul temp, temp1
+0000ce 9200 0101                 	sts queue+1, r0		; queue+1 = HIGH(queue)
+0000d0 c011                      	rjmp Format_endSwitch	
                                  		
-                                 	/* [YYYY] [XXXX] 0000 0000 */
+                                 	/* 	Performs insertion if queue has size one
+                                 		queue = [AAAA] 0000 0000 0000 -> queue = [AAAA] [XXXX] 0000 0000.
+                                 		example: queue = 1000 0000 0000 0000,
+                                 				 targetFloor = 0010 (first floor),
+                                 				 then updated queue = 1000 0010 0000 0000. */
                                  	Format_QueueHasSizeOne:
-0000bd 9190 0101                 	lds temp1, queue+1 ; temp = 0001 0000
-0000bf 2b39                      	or temp, temp1 ; temp | dest = 0001 0000 | 0000 0010 = 0001 0010 
-0000c0 9330 0101                 	sts queue+1, temp
-                                 		
+0000d1 9190 0101                 	lds temp1, queue+1 
+0000d3 2b39                      	or temp, temp1  
+0000d4 9330 0101                 	sts queue+1, temp
+0000d6 c00b                      	rjmp Format_endSwitch
                                  
-0000c2 c00b                      	rjmp Format_endSwitch
-                                 
-                                 	/* 0000 0000 [XXXX] 0000 */
+                                 	/* 	Performs insertion if queue has size two
+                                 		queue = [AAAA] [BBBB] 0000 0000 -> queue = [AAAA] [BBBB] [XXXX] 0000.
+                                 		example: queue = 0010 1000 0000 0000,
+                                 				 targetFloor = 0100 (third floor),
+                                 				 then updated queue = 0010 1000 0100 0000. */
                                  	Format_QueueHasSizeTwo:
-0000c3 e190                      	ldi temp1, (1<<4)
-0000c4 9f39                      	mul temp, temp1
-0000c5 9200 0100                 	sts queue, r0
+0000d7 e190                      	ldi temp1, (1<<4)
+0000d8 9f39                      	mul temp, temp1
+0000d9 9200 0100                 	sts queue, r0
                                  
-0000c7 c006                      	rjmp Format_endSwitch	
+0000db c006                      	rjmp Format_endSwitch	
                                  
-                                 	/* 0000 0000 [YYYY] [XXXX] */
+                                 	/* 	Performs insertion if queue has size three
+                                 		queue = [AAAA] [BBBB] [CCCC] 0000 -> queue = [AAAA] [BBBB] [CCCC] [XXXX].
+                                 		example: queue = 0010 1000 0100 0000,
+                                 				 targetFloor = 0001 (ground floor),
+                                 				 then updated queue = 0010 1000 0100 0000. */
                                  	Format_QueueHasSizeThree:
-0000c8 9190 0100                 	lds temp1, queue
-0000ca 2b39                      	or temp, temp1
-0000cb 9330 0100                 	sts queue, temp
-                                 
-0000cd c000                      	rjmp Format_endSwitch	
+0000dc 9190 0100                 	lds temp1, queue
+0000de 2b39                      	or temp, temp1
+0000df 9330 0100                 	sts queue, temp
+0000e1 c000                      	rjmp Format_endSwitch	
                                  
                                  	Format_EndSwitch:
-0000ce 9583                      	inc queueSize
+0000e2 9583                      	inc queueSize
                                  
-0000cf 9508                      	ret
+0000e3 9508                      	ret
                                  
+                                 /* Removes the queue top from the queue */
                                  dequeue:
-0000d0 2764                      	eor requested, currentFloor
+                                 	/*  Removes current floor from requested floors. 
+                                 		example: requested [0, 1, 0, 1] = 1010 
+                                 				 currentFloor = 1000 (third floor)
+                                 				 updated requested = 1010 xor 1000 = 0010 [0, 1, 0, 0] */
+0000e4 2764                      	eor requested, currentFloor
                                  
-                                 	/* carregar (high(queue)<<4) em temp1 
-                                 	[1000 0100] [1 0000] = [0000 1000 0100 0000] */
-0000d1 9190 0101                 	lds temp1, queue+1
-0000d3 e130                      	ldi temp, (1<<4)
-0000d4 9f93                      	mul temp1, temp
-0000d5 9200 0101                 	sts queue+1, r0
+                                 	/* Shifts HIGH(queue) to the left four times
+                                 		example:
+                                 			queue = 0000 0000 1000 0100 
+                                 			updated queue = 0000 1000 0100 0000 */
+0000e5 9190 0101                 	lds temp1, queue+1
+0000e7 e130                      	ldi temp, (1<<4)
+0000e8 9f93                      	mul temp1, temp
+0000e9 9200 0101                 	sts queue+1, r0
+                                 
+                                 	/* Shifts bottom of HIGH(queue) with top of LOW(queue) 
+                                 		to the left four times
+                                 		example:
+                                 			queue = 0000 1000 0001 0100 
+                                 			updated queue = 1000 0001 0100 0000 */
+0000eb 9190 0100                 	lds temp1, queue
+0000ed e130                      	ldi temp, (1<<4)
+0000ee 9f93                      	mul temp1, temp
+                                 
+0000ef 9130 0101                 	lds temp, queue+1
+0000f1 2931                      	or temp, r1
+0000f2 9330 0101                 	sts queue+1, temp
+                                 
+                                 	/* Shifts LOW(queue) to the left four times
+                                 		example:
+                                 			queue = 0000 0000 1000 0100 
+                                 			updated queue = 0000 1000 0100 0000 */
+0000f4 9190 0100                 	lds temp1, queue
+0000f6 e130                      	ldi temp, (1<<4)
+0000f7 9f93                      	mul temp1, temp
+0000f8 9200 0100                 	sts queue, r0
                                  
                                  	/* */
+0000fa 958a                      	dec queueSize
+0000fb 9508                      	ret
                                  
-                                 	; carregar (low(queue)>>4) temp1 
-0000d7 9190 0100                 	lds temp1, queue
-0000d9 e130                      	ldi temp, (1<<4)
-0000da 9f93                      	mul temp1, temp
-                                 	; faz (low(queue)>>4) | high(queue) 
-0000db 9130 0101                 	lds temp, queue+1
-0000dd 2931                      	or temp, r1
-0000de 9330 0101                 	sts queue+1, temp
-                                 
-                                 	/* */
-                                 	/* carregar (low(queue)<<4) em temp1 
-                                 	[1000 1000] * [1 0000] = [0000 1000 1000 0000] */
-0000e0 9190 0100                 	lds temp1, queue
-0000e2 e130                      	ldi temp, (1<<4)
-0000e3 9f93                      	mul temp1, temp
-0000e4 9200 0100                 	sts queue, r0
-                                 
-0000e6 958a                      	dec queueSize
-0000e7 9508                      	ret
-                                 
+                                 /* Solve the most important request (queue top) */
                                  resolve:
-                                 	/* olha o topo da fila
-                                 	se o topo da fila > current floor ---  chame goUp
-                                 	se o topo da fila < current floor chame goDown */
-                                 	
-                                 	/* Checa se tem alguem na fila */
-0000e8 3080                      	cpi queueSize, 0
-0000e9 f069                      	breq resolve_Return
                                  
-                                 	/* Pega o topo da fila */
-0000ea e130                      	ldi temp, (1<<4)
-0000eb 9190 0101                 	lds temp1, queue+1
-0000ed 9f93                      	mul temp1, temp
-0000ee 2d21                      	mov queueTop, r1
+                                 	/* If nobody on queue, return */
+0000fc 3080                      	cpi queueSize, 0
+0000fd f069                      	breq resolve_Return
                                  
-                                 	/* Reset 3 second timer */
-0000ef e010                      	ldi timerTimeCount, 0
+                                 	/* Get queue top */
+0000fe e130                      	ldi temp, (1<<4)
+0000ff 9190 0101                 	lds temp1, queue+1
+000101 9f93                      	mul temp1, temp
+000102 2d21                      	mov queueTop, r1
+                                 
+                                 	/* Reset timer count */
+000103 e010                      	ldi timerTimeCount, 0
                                  	
-0000f0 1742                      	cp currentFloor, queueTop
-0000f1 f018                      	brlo resolve_BranchIfLower
-0000f2 940e 0055                 		call goDown
-0000f4 c002                      		rjmp resolve_endSwitch
+                                 	/* If currentFloor > queueTop, call goDown (move elevator down).
+                                 		otherwise, call goUp (move elevator up) */
+000104 1742                      	cp currentFloor, queueTop
+000105 f018                      	brlo resolve_BranchIfLower
+000106 940e 0068                 		call goDown
+000108 c002                      		rjmp resolve_endSwitch
                                  	resolve_BranchIfLower:		
-0000f5 940e 007b                 		call goUp
+000109 940e 0087                 		call goUp
                                  	resolve_endSwitch:
-                                 
                                  	resolve_Return:
                                  
-0000f7 9508                      	ret
+00010b 9508                      	ret
                                  
+                                 /* Format current floor into printable display output */
                                  parseDisplay:
-                                 	/* pega currentFloor e joga no display
-                                 	XXXX = ABCD
-                                 	0001 = 0001
-                                 	0010 = 0010
-                                 	0100 = 0011
-                                 	1000 = 0100 */
                                  
-0000f8 3041                      	cpi currentFloor, (1<<0) ; 0001
-0000f9 f031                      	breq parseDisplay_numberZero
-0000fa 3042                      	cpi currentFloor, (1<<1) ; 0010
-0000fb f039                      	breq parseDisplay_numberOne
-0000fc 3044                      	cpi currentFloor, (1<<2) ; 0100
-0000fd f041                      	breq parseDisplay_numberTwo
-0000fe 3048                      	cpi currentFloor, (1<<3) ; 1000
-0000ff f049                      	breq parseDisplay_numberThree
                                  
+                                 	/* 	example:
+                                 		(current floor) XXXX = (display output) ABCD
+                                 						0001 = 0001
+                                 						0010 = 0010
+                                 						0100 = 0011
+                                 						1000 = 0100 */
+                                 		 
+00010c 3041                      	cpi currentFloor, (1<<0)			; 0001
+00010d f031                      	breq parseDisplay_numberZero		; 0001 -> 0001
+00010e 3042                      	cpi currentFloor, (1<<1)			; 0010
+00010f f039                      	breq parseDisplay_numberOne		    ; 0010 -> 0010
+000110 3044                      	cpi currentFloor, (1<<2)			; 0100
+000111 f041                      	breq parseDisplay_numberTwo			; 0100 -> 0011
+000112 3048                      	cpi currentFloor, (1<<3)			; 1000
+000113 f049                      	breq parseDisplay_numberThree		; 1000 -> 0100
+                                 	
                                  	parseDisplay_numberZero:
-000100 e030                      	ldi temp, 0
-000101 b935                      	out PORTB, temp
-000102 c009                      	rjmp parseDisplay_endSwitch	
+000114 e030                      	ldi temp, 0
+000115 b935                      	out PORTB, temp
+000116 c009                      	rjmp parseDisplay_endSwitch	
                                  		
                                  	parseDisplay_numberOne:
-000103 e031                      	ldi temp, 1
-000104 b935                      	out PORTB, temp
-000105 c006                      	rjmp parseDisplay_endSwitch
+000117 e031                      	ldi temp, 1
+000118 b935                      	out PORTB, temp
+000119 c006                      	rjmp parseDisplay_endSwitch
                                  
                                  	parseDisplay_numberTwo:
-000106 e032                      	ldi temp, 2
-000107 b935                      	out PORTB, temp
-000108 c003                      	rjmp parseDisplay_endSwitch	
+00011a e032                      	ldi temp, 2
+00011b b935                      	out PORTB, temp
+00011c c003                      	rjmp parseDisplay_endSwitch	
                                  
                                  	parseDisplay_numberThree:
-000109 e033                      	ldi temp, 3
-00010a b935                      	out PORTB, temp
-00010b c000                      	rjmp parseDisplay_endSwitch	
+00011d e033                      	ldi temp, 3
+00011e b935                      	out PORTB, temp
+00011f c000                      	rjmp parseDisplay_endSwitch	
                                  
                                  	parseDisplay_endSwitch:
-00010c 9508                      	ret
-                                 
+000120 9508                      	ret
                                  
                                  main:
                                  	
-                                 	/* Usar currentFloor para decidir se vai para cima ou para baixo com goUp, goDown */
-                                 	;lds temp, queueSize
-                                 	
-00010d 940e 00f8                 	call parseDisplay
-                                 	/* */
-00010f 940e 00e8                 	call resolve
-                                 	;lds temp, queue+1
+                                 	/* Update display */	
+000121 940e 010c                 	call parseDisplay
+                                 
+                                 	/* Check if something needs to be done */
+000123 940e 00fc                 	call resolve
+                                 
 
 
 RESOURCE USE INFORMATION
@@ -1515,37 +1568,37 @@ counted separately from r26..r31 here.
 "ATmega328P" register use summary:
 x  :   0 y  :   0 z  :   0 r0 :   4 r1 :   5 r2 :   0 r3 :   0 r4 :   0 
 r5 :   0 r6 :   0 r7 :   0 r8 :   0 r9 :   0 r10:   0 r11:   0 r12:   0 
-r13:   0 r14:   0 r15:   0 r16:   0 r17:  14 r18:   6 r19:  88 r20:  13 
-r21:   9 r22:   4 r23:   5 r24:   8 r25:  34 r26:   0 r27:   0 r28:   0 
+r13:   0 r14:   0 r15:   0 r16:   0 r17:  16 r18:   6 r19:  90 r20:  11 
+r21:   9 r22:   4 r23:   5 r24:   8 r25:  28 r26:   0 r27:   0 r28:   0 
 r29:   0 r30:   0 r31:   0 
 Registers used: 11 out of 35 (31.4%)
 
 "ATmega328P" instruction use summary:
 .lds  :   0 .sts  :   0 adc   :   0 add   :   0 adiw  :   0 and   :   1 
 andi  :   0 asr   :   0 bclr  :   0 bld   :   0 brbc  :   0 brbs  :   0 
-brcc  :   0 brcs  :   0 break :   0 breq  :  12 brge  :   0 brhc  :   0 
-brhs  :   0 brid  :   0 brie  :   0 brlo  :   2 brlt  :   0 brmi  :   0 
-brne  :   7 brpl  :   0 brsh  :   0 brtc  :   0 brts  :   0 brvc  :   0 
-brvs  :   0 bset  :   0 bst   :   0 call  :  10 cbi   :   0 cbr   :   0 
-clc   :   0 clh   :   0 cli   :   1 cln   :   0 clr   :   2 cls   :   0 
+brcc  :   0 brcs  :   0 break :   0 breq  :  14 brge  :   0 brhc  :   0 
+brhs  :   0 brid  :   0 brie  :   0 brlo  :   8 brlt  :   0 brmi  :   0 
+brne  :   1 brpl  :   0 brsh  :   0 brtc  :   0 brts  :   0 brvc  :   0 
+brvs  :   0 bset  :   0 bst   :   0 call  :  16 cbi   :   0 cbr   :   0 
+clc   :   0 clh   :   0 cli   :   1 cln   :   0 clr   :   3 cls   :   0 
 clt   :   0 clv   :   0 clz   :   0 com   :   0 cp    :   3 cpc   :   0 
-cpi   :  18 cpse  :   0 dec   :   1 eor   :   3 fmul  :   0 fmuls :   0 
-fmulsu:   0 icall :   0 ijmp  :   0 in    :   9 inc   :   2 jmp   :   3 
-ld    :   0 ldd   :   0 ldi   :  44 lds   :  10 lpm   :   0 lsl   :   1 
+cpi   :  20 cpse  :   0 dec   :   1 eor   :   2 fmul  :   0 fmuls :   0 
+fmulsu:   0 icall :   0 ijmp  :   0 in    :   8 inc   :   2 jmp   :   4 
+ld    :   0 ldd   :   0 ldi   :  43 lds   :  10 lpm   :   0 lsl   :   1 
 lsr   :   1 mov   :   6 movw  :   0 mul   :   9 muls  :   0 mulsu :   0 
-neg   :   0 nop   :   0 or    :   8 ori   :   0 out   :  19 pop   :   4 
-push  :   4 rcall :   0 ret   :   7 reti  :   2 rjmp  :  14 rol   :   0 
+neg   :   0 nop   :   0 or    :   6 ori   :   0 out   :  15 pop   :   6 
+push  :   6 rcall :   0 ret   :  10 reti  :   3 rjmp  :  16 rol   :   0 
 ror   :   0 sbc   :   0 sbci  :   0 sbi   :   0 sbic  :   0 sbis  :   0 
 sbiw  :   0 sbr   :   1 sbrc  :   0 sbrs  :   0 sec   :   0 seh   :   0 
 sei   :   1 sen   :   0 ser   :   0 ses   :   0 set   :   0 sev   :   0 
-sez   :   0 sleep :   0 spm   :   0 st    :   0 std   :   0 sts   :  14 
+sez   :   0 sleep :   0 spm   :   0 st    :   0 std   :   0 sts   :  15 
 sub   :   0 subi  :   0 swap  :   0 tst   :   0 wdr   :   0 
 Instructions used: 30 out of 113 (26.5%)
 
 "ATmega328P" memory use summary [bytes]:
 Segment   Begin    End      Code   Data   Used    Size   Use%
 ---------------------------------------------------------------
-[.cseg] 0x000000 0x000224    512      0    512   32768   1.6%
+[.cseg] 0x000000 0x00024c    556      0    556   32768   1.7%
 [.dseg] 0x000100 0x000102      0      2      2    2048   0.1%
 [.eseg] 0x000000 0x000000      0      0      0    1024   0.0%
 
